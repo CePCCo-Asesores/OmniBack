@@ -1,17 +1,19 @@
 import React from 'react';
 import { getGoogleLoginUrl } from '../api';
+import { GoogleLoginButton } from '../core/auth';
 
-const DashboardUI = () => {
-  const handleLogin = () => {
-    window.location.href = getGoogleLoginUrl();
-  };
-
+const DashboardUI = ({ user }: { user?: Record<string, any> }) => {
   return (
     <div style={{ padding: '2rem', textAlign: 'center' }}>
       <h1>Dashboard OmniBack</h1>
-      <button onClick={handleLogin} style={{ padding: '1rem 2rem', fontSize: '1rem' }}>
-        Iniciar sesión con Google
-      </button>
+      {!user ? (
+        <GoogleLoginButton />
+      ) : (
+        <>
+          <p>Sesión activa como: <strong>{user.email}</strong></p>
+          <p>Nombre: {user.name}</p>
+        </>
+      )}
     </div>
   );
 };
