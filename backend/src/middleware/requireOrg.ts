@@ -1,5 +1,5 @@
 // src/middleware/requireOrg.ts
-import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction, RequestHandler } from "express";
 import {
   getBearerToken,
   verifyAccessToken,
@@ -60,8 +60,8 @@ function isMemberForOrg(claims: Claims, orgId: string): boolean {
   return false;
 }
 
-// --- Middlewares --- //
-export function requireOrg(req: Request, res: Response, next: NextFunction) {
+// --- Handlers base (directos) --- //
+const requireOrgHandler: RequestHandler = (req, res, next) => {
   const claims = extractClaims(req, res);
   if (!claims) return;
 
@@ -71,13 +71,9 @@ export function requireOrg(req: Request, res: Response, next: NextFunction) {
   (req as any).user = claims;
   (req as any).orgId = orgId;
   next();
-}
+};
 
-export function requireOrgMember(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
+const requireOrgMemberHandler: RequestHandler = (req, res, next) => {
   const claims = extractClaims(req, res);
   if (!claims) return;
 
@@ -92,13 +88,9 @@ export function requireOrgMember(
   (req as any).user = claims;
   (req as any).orgId = orgId;
   next();
-}
+};
 
-export function requireOrgAdmin(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
+const requireOrgAdminHandler: RequestHandler = (req, res, next) => {
   const claims = extractClaims(req, res);
   if (!claims) return;
 
@@ -113,7 +105,18 @@ export function requireOrgAdmin(
   (req as any).user = claims;
   (req as any).orgId = orgId;
   next();
+};
+
+// --- FÁBRICAS (compatibles con uso requireOrgMember()) --- //
+export function requireOrg(): RequestHandler {
+  return requireOrgHandler;
+}
+export function requireOrgMember(): RequestHandler {
+  return requireOrgMemberHandler;
+}
+export function requireOrgAdmin(): RequestHandler {
+  return requireOrgAdminHandler;
 }
 
-// Default export para compatibilidad
-export default requireOrg;
+// --- Default para uso directo sin paréntesis --- //
+export default requireOrgHandler;
