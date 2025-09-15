@@ -4,85 +4,99 @@ import cors from 'cors';
 import helmet from 'helmet';
 import session from 'express-session';
 import passport from 'passport';
-import morgan from 'morgan';
+import compression from 'compression';
+import cookieParser from 'cookie-parser';
+import rateLimit from 'express-rate-limit';
+import pinoHttp from 'pino-http';
+import { v4 as uuid } from 'uuid';
 
-import { corsOptions } from './utils/corsOptions'; // usa el tuyo; si no existe, cambia por tu config previa
-import { router as healthRouter } from './routes/health';   // asumiendo que ya lo tienes en v2
-import { router as versionRouter } from './routes/version'; // idem
+import { corsOptions } from './utils/corsOptions';
+import { logger } from './utils/logger';
+import { router as healthRouter } from './routes/health';
+import { router as versionRouter } from './routes/version';
+import { router as readyRouter } from './routes/ready';
 import { router as meRouter } from './routes/me';
 import { router as profileRouter } from './routes/profile';
-import { googleAuthRoutes } from './auth/google'; // ya existe en tu repo v2
+import { googleAuthRoutes } from './auth/google';
 
-// Nota: si tienes un export de "app" en otro archivo, este será ahora el único entrypoint.
 const app = express();
 
-// ----- Seguridad y middlewares base -----
-app.set('trust proxy', 1); // necesario detrás de Render/Railway/NGINX para cookies secure
+app.set('trust proxy', 1);
+
+// Seguridad base
 app.use(helmet());
+app.use(helmet.hsts({ maxAge: 15552000, includeSubDomains: true, preload: true })); // 180 días aprox
+app.use(compression());
 app.use(cors(corsOptions || { origin: process.env.ALLOWED_ORIGIN?.split(',') || [], credentials: true }));
 app.use(express.json({ limit: process.env.MAX_REQUEST_SIZE || '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: process.env.MAX_REQUEST_SIZE || '1mb' }));
+app.use(cookieParser());
 
-if (process.env.NODE_ENV !== 'production') {
-  app.use(morgan('dev'));
-}
+// Logging estructurado + request-id
+app.use((req, _res, next) => {
+  (req as any).id = uuid();
+  next();
+});
+app.use(pinoHttp({ logger, genReqId: req => (req as any).id }));
 
-// ----- Sesión + Passport (para OAuth Google) -----
+// Rate limit para /auth (mitiga abuso)
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 100, standardHeaders: true, legacyHeaders: false });
+app.use('/auth', authLimiter);
+
+// Sesión (si más adelante la usas; el flujo actual usa JWT sin sesión)
 const SESSION_SECRET = process.env.SESSION_SECRET || 'change-me';
 app.use(
   session({
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'lax',
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 días
-    },
+    cookie: { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 },
   })
 );
 
 app.use(passport.initialize());
 app.use(passport.session());
 
-// ----- Rutas Públicas -----
-app.get('/', (_req: Request, res: Response) => {
-  res.json({ ok: true, service: 'omni-back', env: process.env.NODE_ENV || 'dev' });
-});
-
-// Health / Version
+// Rutas públicas
+app.get('/', (_req: Request, res: Response) => res.json({ ok: true, service: 'omni-back', env: process.env.NODE_ENV || 'dev' }));
 app.use('/health', healthRouter);
+app.use('/ready', readyRouter);
 app.use('/version', versionRouter);
 
-// OAuth Google (usa tu módulo existente)
+// Auth
 app.use('/auth/google', googleAuthRoutes);
 
-// Perfil e identidad
+// Perfil / identidad
 app.use('/profile', profileRouter);
 app.use('/me', meRouter);
 
-// ----- Manejador de errores (4 args) -----
+// Manejo de errores
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const status = err.status || err.code || 500;
   const message = err.message || 'Internal Server Error';
-  if (process.env.NODE_ENV !== 'production') {
-    // Log detallado solo en dev
-    // eslint-disable-next-line no-console
-    console.error('[ERROR]', err);
-  }
+  logger.error({ err, status }, 'Unhandled error');
   res.status(status).json({ error: message });
 });
 
-// ----- Inicio de servidor -----
 const PORT = Number(process.env.PORT || 8080);
 const HOST = '0.0.0.0';
+let server: import('http').Server;
 
 if (require.main === module) {
-  app.listen(PORT, HOST, () => {
-    // eslint-disable-next-line no-console
-    console.log(`OmniBack listening on http://${HOST}:${PORT}`);
-  });
+  server = app.listen(PORT, HOST, () => logger.info(`OmniBack listening on http://${HOST}:${PORT}`));
+
+  const shutdown = (signal: string) => {
+    logger.warn({ signal }, 'Shutting down gracefully');
+    server.close(() => {
+      logger.info('HTTP server closed');
+      process.exit(0);
+    });
+    // Failsafe: si algo se queda colgado
+    setTimeout(() => process.exit(1), 10000).unref();
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 export default app;
