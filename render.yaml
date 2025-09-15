@@ -27,11 +27,11 @@ services:
 
       # --- URLs ---
       - key: BACKEND_URL
-        value: https://<tu-backend>.onrender.com
+        value: https://tu-backend.onrender.com
       - key: PUBLIC_URL
-        value: https://<tu-frontend>.onrender.com
+        value: https://tu-frontend.onrender.com
       - key: ALLOWED_ORIGIN
-        value: https://<tu-frontend>.onrender.com
+        value: https://tu-frontend.onrender.com
 
       # --- DB ---
       - key: DATABASE_URL
