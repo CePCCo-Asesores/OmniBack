@@ -1,13 +1,12 @@
-export const logInfo = (message: string) => {
-  console.log(`[INFO] ${new Date().toISOString()} — ${message}`);
-};
+import pino from 'pino';
 
-export const logError = (message: string) => {
-  console.error(`[ERROR] ${new Date().toISOString()} — ${message}`);
-};
+const level = process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug');
 
-export const logDebug = (message: string) => {
-  if (process.env.DEBUG === 'true') {
-    console.debug(`[DEBUG] ${new Date().toISOString()} — ${message}`);
-  }
-};
+export const logger = pino({
+  level,
+  base: { service: process.env.SERVICE_NAME || 'omni-back' },
+  redact: {
+    paths: ['req.headers.authorization', 'req.headers.cookie', 'password', '*.token'],
+    censor: '[REDACTED]',
+  },
+});
