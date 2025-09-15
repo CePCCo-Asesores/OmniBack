@@ -11,7 +11,7 @@ services:
   - type: web
     name: omni-back
     env: docker
-    plan: starter
+    plan: free
     region: oregon
     autoDeploy: true
     rootDir: backend
@@ -67,7 +67,7 @@ services:
   - type: web
     name: omni-front
     env: docker
-    plan: starter
+    plan: free
     region: oregon
     autoDeploy: true
     rootDir: frontend
