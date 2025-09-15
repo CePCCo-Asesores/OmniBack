@@ -1,0 +1,25 @@
+# Node / build
+node_modules
+npm-debug.log
+yarn.lock
+pnpm-lock.yaml
+dist
+
+# VCS
+.git
+.gitignore
+.github
+
+# IDEs
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Otros
+.env
+.env.*
+coverage
+tmp
