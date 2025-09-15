@@ -51,7 +51,7 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_CALLBACK_URL
-        value: https://<tu-backend>.onrender.com/auth/google/callback
+        value: https://tu-backend.onrender.com/auth/google/callback
 
       # --- Tokens / otros ---
       - key: ACCESS_TOKEN_TTL
@@ -81,6 +81,6 @@ services:
     # Variables usadas en build (CRA)
     envVars:
       - key: REACT_APP_API_BASE
-        value: https://<tu-backend>.onrender.com
+        value: https://tu-backend.onrender.com
       - key: PUBLIC_URL
-        value: https://<tu-frontend>.onrender.com
+        value: https://tu-frontend.onrender.com
