@@ -62,17 +62,25 @@ services:
         value: "2mb"
 
   # =========================
-  # Frontend (React SPA via Docker)
+  # Frontend (React SPA — Static Site)
   # =========================
   - type: web
     name: omni-front
-    env: docker
+    env: static        # <- cambiado a sitio estático
     plan: free
     region: oregon
     autoDeploy: true
-    rootDir: frontend
-    dockerfilePath: Dockerfile
+    rootDir: frontend  # subdirectorio del frontend (CRA)
+    buildCommand: npm ci && npm run build
+    staticPublishPath: build
 
+    # Rewrites para SPA: cualquier ruta va a index.html
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+    # Variables de entorno usadas en build (CRA)
     envVars:
       - key: REACT_APP_API_BASE
         value: https://<tu-backend>.onrender.com
