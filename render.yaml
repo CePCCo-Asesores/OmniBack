@@ -10,7 +10,7 @@ services:
   # =========================
   - type: web
     name: omni-back
-    env: docker           # lo dejo tal cual para no “cambiar tipo”
+    env: docker
     plan: free
     region: oregon
     autoDeploy: true
@@ -19,41 +19,40 @@ services:
     healthCheckPath: "/health"
 
     envVars:
-      # --- Básicos ---
       - key: NODE_ENV
         value: production
       - key: SERVICE_NAME
         value: omni-back
 
-      # --- URLs ---
+      # URLs reales
       - key: BACKEND_URL
-        value: https://tu-backend.onrender.com
+        value: https://omni-back.onrender.com
       - key: PUBLIC_URL
-        value: https://tu-frontend.onrender.com
+        value: https://omni-front-static.onrender.com
       - key: ALLOWED_ORIGIN
-        value: https://tu-frontend.onrender.com
+        value: https://omni-front-static.onrender.com
 
-      # --- DB ---
+      # DB
       - key: DATABASE_URL
         fromDatabase:
           name: omniback-db
           property: connectionString
 
-      # --- Seguridad / JWT ---
+      # Secretos (defínelos en el panel)
       - key: SESSION_SECRET
         sync: false
       - key: JWT_SECRET
         sync: false
 
-      # --- Google OAuth ---
+      # OAuth (si usas Google)
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_CALLBACK_URL
-        value: https://tu-backend.onrender.com/auth/google/callback
+        value: https://omni-back.onrender.com/auth/google/callback
 
-      # --- Tokens / otros ---
+      # Tokens / otros
       - key: ACCESS_TOKEN_TTL
         value: "15m"
       - key: REFRESH_TOKEN_TTL_MS
@@ -62,11 +61,11 @@ services:
         value: "2mb"
 
   # =========================
-  # Frontend (React SPA — Static Site nuevo)
+  # Frontend (React SPA — Static Site)
   # =========================
   - type: web
     name: omni-front-static
-    env: static            # static site
+    env: static
     autoDeploy: true
     rootDir: frontend
     buildCommand: npm ci && npm run build
@@ -78,9 +77,7 @@ services:
         source: /*
         destination: /index.html
 
-    # Variables usadas en build (CRA)
+    # Var que usa tu código del front para llamar al backend
     envVars:
       - key: REACT_APP_API_BASE
-        value: https://tu-backend.onrender.com
-      - key: PUBLIC_URL
-        value: https://tu-frontend.onrender.com
+        value: https://omni-back.onrender.com
