@@ -1,12 +1,15 @@
 // src/db/pool.ts
-import { Pool, QueryResult } from "pg";
+import { QueryResult, QueryResultRow } from "pg";
 import { createPool, pool } from "./connection";
 
-// Re-export para compatibilidad con imports que usen createPool/pool
+// Re-export para compatibilidad
 export { createPool, pool };
 
-// Helper opcional que muchos módulos suelen importar: { query } desde "../db/pool"
-export function query<T = any>(
+/**
+ * Helper de consulta con tipado correcto.
+ * T debe extender QueryResultRow para que encaje con las defs de pg.
+ */
+export function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: any[]
 ): Promise<QueryResult<T>> {
