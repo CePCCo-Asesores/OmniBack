@@ -10,7 +10,7 @@ services:
   # =========================
   - type: web
     name: omni-back
-    env: docker
+    env: docker           # lo dejo tal cual para no “cambiar tipo”
     plan: free
     region: oregon
     autoDeploy: true
@@ -39,7 +39,7 @@ services:
           name: omniback-db
           property: connectionString
 
-      # --- Seguridad / JWT (solo sync o value, no ambos) ---
+      # --- Seguridad / JWT ---
       - key: SESSION_SECRET
         sync: false
       - key: JWT_SECRET
@@ -62,24 +62,23 @@ services:
         value: "2mb"
 
   # =========================
-  # Frontend (React SPA — Static Site)
+  # Frontend (React SPA — Static Site nuevo)
   # =========================
   - type: web
-    name: omni-front
-    runtime: static        # <- cambiado a sitio estático
-    plan: free
+    name: omni-front-static
+    env: static            # static site
     autoDeploy: true
-    rootDir: frontend  # subdirectorio del frontend (CRA)
+    rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: build
 
-    # Rewrites para SPA: cualquier ruta va a index.html
+    # Rewrites para SPA
     routes:
       - type: rewrite
         source: /*
         destination: /index.html
 
-    # Variables de entorno usadas en build (CRA)
+    # Variables usadas en build (CRA)
     envVars:
       - key: REACT_APP_API_BASE
         value: https://<tu-backend>.onrender.com
