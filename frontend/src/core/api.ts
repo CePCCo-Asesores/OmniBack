@@ -9,6 +9,9 @@ const BASE_URL =
 function getToken(): string | null {
   try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
 }
+function setToken(t: string) {
+  try { localStorage.setItem(TOKEN_KEY, t); } catch { /* ignore */ }
+}
 function clearToken() {
   try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
 }
@@ -18,7 +21,7 @@ type FetchOptions = Omit<RequestInit, 'headers'> & {
   auth?: boolean;
 };
 
-async function http(path: string, opts: FetchOptions = {}) {
+async function rawFetch(path: string, opts: FetchOptions = {}) {
   const url = path.startsWith('http') ? path : `${BASE_URL}${path}`;
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
 
@@ -31,16 +34,34 @@ async function http(path: string, opts: FetchOptions = {}) {
   const isJson = res.headers.get('content-type')?.includes('application/json');
   const body = isJson ? await res.json().catch(() => ({})) : await res.text();
 
-  if (!res.ok) {
-    // Manejo 401/403 centralizado: limpiar sesión y mandar a login
-    if (res.status === 401 || res.status === 403) {
+  return { res, body, isJson };
+}
+
+async function http(path: string, opts: FetchOptions = {}) {
+  // 1º intento
+  let { res, body, isJson } = await rawFetch(path, opts);
+
+  if (res.status === 401 || res.status === 403) {
+    // Intento de refresh: si hay cookie 'rt' válida el backend devolverá nuevo token
+    const refresh = await rawFetch('/auth/refresh', { method: 'POST' });
+    if (refresh.res.ok && refresh.body?.token) {
+      setToken(refresh.body.token);
+      // Reintentar request original con nuevo token
+      ({ res, body, isJson } = await rawFetch(path, opts));
+    } else {
       clearToken();
       if (typeof window !== 'undefined') {
         const loginUrl = '/login';
         const from = encodeURIComponent(window.location.pathname + window.location.search);
         window.location.replace(`${loginUrl}?from=${from}`);
       }
+      const err: any = new Error('Unauthorized');
+      err.status = 401;
+      throw err;
     }
+  }
+
+  if (!res.ok) {
     const message = (isJson && (body?.error || body?.message)) || res.statusText || 'HTTP error';
     const err: any = new Error(message);
     err.status = res.status;
