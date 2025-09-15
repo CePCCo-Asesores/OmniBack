@@ -1,23 +1,15 @@
-import { Router, Request, Response } from 'express';
-import { Pool } from 'pg';
+import { Router } from "express";
+import { pool } from "../db/connection";
 
-export const router = Router();
+const router = Router();
 
-router.get('/', async (_req: Request, res: Response) => {
-  const url = process.env.DATABASE_URL;
-  if (!url) return res.json({ status: 'ready', db: 'skipped' });
-
-  const pool = new Pool({ connectionString: url, ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined });
-
+router.get("/", async (_req, res) => {
   try {
-    const r = await pool.query('SELECT 1');
-    if (r?.rowCount === 1) {
-      return res.json({ status: 'ready', db: 'ok' });
-    }
-    return res.status(503).json({ status: 'not_ready', db: 'fail' });
+    const r = await pool.query("SELECT 1 as ready");
+    res.json({ ready: r.rows[0].ready === 1 });
   } catch (e: any) {
-    return res.status(503).json({ status: 'not_ready', db: 'fail', error: e?.message || 'db_error' });
-  } finally {
-    await pool.end().catch(() => void 0);
+    res.status(500).json({ ready: false, error: e?.message || "db error" });
   }
 });
+
+export default router;
