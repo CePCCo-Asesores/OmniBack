@@ -1,7 +1,12 @@
-import app from './server';
+import { createServer } from "./server";
 
-const PORT = process.env.PORT || 3000;
+const app = createServer();
+const PORT = Number(process.env.PORT) || 10000;
+
+// Si usas cookies secure detrás de proxy, descomenta:
+// app.set("trust proxy", 1);
 
 app.listen(PORT, () => {
-  console.log(`OmniBack backend activo en puerto ${PORT}`);
+  console.log(`[omniback] Listening on port ${PORT}`);
 });
+
