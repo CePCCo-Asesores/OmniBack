@@ -1,3 +1,4 @@
+// backend/src/server.ts
 import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -30,7 +31,7 @@ app.set('trust proxy', 1); // cookies secure detrás de proxy (Railway/Render)
 app.use(helmet());
 // HSTS solo en prod (evita problemas en dev con http)
 if (process.env.NODE_ENV === 'production') {
-  app.use(helmet.hsts({ maxAge: 15552000, includeSubDomains: true, preload: true }));
+  app.use(helmet.hsts({ maxAge: 15552000, includeSubDomains: true, preload: true })); // ~180 días
 }
 
 app.use(compression());
@@ -85,10 +86,10 @@ app.use('/ready', readyRouter);
 app.use('/version', versionRouter);
 
 // ------------------------ Auth ------------------------
-app.use('/auth/google', googleAuthRoutes); // OAuth Google (con STATE)
+app.use('/auth/google', googleAuthRoutes); // OAuth Google (con STATE y redirect ?token=)
 app.use('/auth', authRouter);              // /auth/refresh y /auth/logout
 
-// ------------------------ Rutas protegidas / públicas varias ------------------------
+// ------------------------ Rutas app ------------------------
 app.use('/profile', profileRouter); // pública
 app.use('/me', meRouter);           // requiere Bearer (access token)
 
