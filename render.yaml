@@ -10,7 +10,6 @@ services:
   # =========================
   - type: web
     name: omni-back
-    env: node
     plan: starter
     region: oregon
     autoDeploy: true
