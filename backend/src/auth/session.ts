@@ -9,29 +9,17 @@ export type AccessTokenPayload = {
   [k: string]: any;
 };
 
-/**
- * El tipo que jsonwebtoken acepta para expiresIn NO es "string" genérico,
- * sino un "StringValue" (p.ej. "1h", "30m", "7d") o number (segundos).
- */
-export type Expires =
-  | number
-  | `${number}ms`
-  | `${number}s`
-  | `${number}m`
-  | `${number}h`
-  | `${number}d`;
-
-const JWT_SECRET: Secret = (process.env.JWT_SECRET || "change_me_in_prod") as Secret;
+const JWT_SECRET: Secret = (process.env.JWT_SECRET || "change_me_in_prod");
 
 /**
- * Crea un JWT de acceso con typing compatible con jsonwebtoken@9.
+ * Crea un JWT de acceso. `expiresIn` puede ser "1h", "30m", 3600, etc.
+ * Forzamos el tipo en las options para que seleccione el overload correcto.
  */
 export function createAccessToken(
   payload: AccessTokenPayload,
-  expiresIn: Expires = "1h"
+  expiresIn: string | number = "1h"
 ): string {
-  const options: SignOptions = { expiresIn };
-  // Forzamos el overload correcto pasando options tipado.
+  const options: SignOptions = { expiresIn: expiresIn as any };
   return jwt.sign(payload as object, JWT_SECRET, options);
 }
 
@@ -45,8 +33,8 @@ export function verifyAccessToken(token: string): AccessTokenPayload | null {
 }
 
 /**
- * Extrae el token Bearer de un request (Authorization o query ?token=).
- * Mantengo la firma “request-like” para evitar depender de tipos de Express aquí.
+ * Extrae el token Bearer del request (Authorization o query ?token=).
+ * Firma “request-like” para no depender de tipos de Express aquí.
  */
 export function getBearerToken(req: { headers?: any; query?: any }): string | null {
   const auth = req?.headers?.authorization as string | undefined;
@@ -57,4 +45,5 @@ export function getBearerToken(req: { headers?: any; query?: any }): string | nu
   return q ? String(q) : null;
 }
 
-/** Alias para compatibilidad con código que importe verifyToken */***
+/** Alias para compatibilidad con código que importe verifyToken */
+export const verifyToken = verifyAccessToken;
