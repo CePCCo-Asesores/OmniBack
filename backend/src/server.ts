@@ -1,25 +1,47 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-import { setupRoutes } from './router';
-import { limiter } from './middleware/rateLimiter';
-import { sanitizeInput } from './middleware/sanitize';
-import { corsConfig } from './middleware/cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import session from 'express-session';
+import passport from 'passport';
+import authRoutes from './routes/auth';
+import profileRoutes from './routes/profile';
+import meRoutes from './routes/me';
+import healthRoutes from './routes/health';
+import versionRoutes from './routes/version';
+import errorHandler from './middleware/errorHandler';
+import { ALLOWED_ORIGIN, SESSION_SECRET } from './config/env';
 
-dotenv.config();
+const app = express();
 
-export const startServer = () => {
-  const app = express();
+// Seguridad
+app.use(helmet());
+app.use(cors({ origin: ALLOWED_ORIGIN, credentials: true }));
+app.use(express.json());
+app.use(morgan('dev'));
 
-  app.use(corsConfig);
-  app.use(limiter);
-  app.use(sanitizeInput);
-  app.use(express.json());
+// Sesión + Passport
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false,
+    httpOnly: true,
+    sameSite: 'lax'
+  }
+}));
+app.use(passport.initialize());
+app.use(passport.session());
 
-  setupRoutes(app);
+// Rutas
+app.use('/auth', authRoutes);
+app.use('/profile', profileRoutes);
+app.use('/me', meRoutes);
+app.use('/health', healthRoutes);
+app.use('/version', versionRoutes);
 
-  const port = process.env.PORT || 3000;
-  app.listen(port, () => {
-    console.log(`OmniBack activo en puerto ${port}`);
-  });
-};
+// Handler global
+app.use(errorHandler);
+
+export default app;
