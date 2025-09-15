@@ -1,13 +1,15 @@
 import jwt from 'jsonwebtoken';
 
 export type Claims = {
-  sub: string;               // id del proveedor (Google profile.id)
-  provider: 'google' | string;
+  sub: string;               // user.id interno (NO el id de Google)
   email?: string;
   name?: string;
   picture?: string;
   roles?: string[];
-  [k: string]: any;          // espacio para metadata futura
+  provider?: 'google' | string;
+  iss?: string;
+  aud?: string;
+  [k: string]: any;
 };
 
 function requireEnv(name: string): string {
@@ -17,29 +19,17 @@ function requireEnv(name: string): string {
 }
 
 const JWT_SECRET = requireEnv('JWT_SECRET');
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
-/**
- * Firma un JWT con los claims completos del usuario (no solo el id).
- */
-export function createToken(claims: Claims): string {
-  // Por seguridad, evita sobreescribir 'exp' si llega desde fuera
-  const { exp, iat, nbf, ...safeClaims } = claims as any;
-  return jwt.sign(safeClaims, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+export function createAccessToken(claims: Claims, expiresIn: string = '15m'): string {
+  const { exp, iat, nbf, ...safe } = claims as any;
+  const base = { ...safe, iss: 'omni-back', aud: 'omni-frontend' };
+  return jwt.sign(base, JWT_SECRET, { expiresIn });
 }
 
-/**
- * Verifica y decodifica un JWT, devolviendo los claims.
- * Lanza si es inválido o expiró.
- */
-export function verifyToken(token: string): Claims {
+export function verifyAccessToken(token: string): Claims {
   return jwt.verify(token, JWT_SECRET) as Claims;
 }
 
-/**
- * Intenta extraer el Bearer token de un header Authorization estándar.
- * Devuelve null si no existe o no tiene el formato correcto.
- */
 export function getBearerToken(authHeader?: string | null): string | null {
   if (!authHeader) return null;
   if (!authHeader.toLowerCase().startsWith('bearer ')) return null;
