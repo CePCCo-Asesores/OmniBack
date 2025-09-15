@@ -1,18 +1,22 @@
-import { Router } from 'express';
-import { verifyToken } from '../utils/jwt';
+import { Router, Request, Response } from 'express';
+import { verifyToken } from '../auth/session'; // <-- corregido: antes apuntaba a ../utils/jwt (no existe)
 
-const router = Router();
+export const router = Router();
 
-router.get('/', (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'Token requerido' });
-
+/**
+ * GET /me
+ * Lee el Bearer token, lo verifica y devuelve los claims mínimos.
+ */
+router.get('/', (req: Request, res: Response) => {
   try {
-    const claims = verifyToken(token);
-    res.json({ user: claims });
-  } catch {
-    res.status(401).json({ error: 'Token inválido' });
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.substring(7) : null;
+    if (!token) {
+      return res.status(401).json({ error: 'Missing bearer token' });
+    }
+    const payload = verifyToken(token);
+    return res.json({ user: payload });
+  } catch (e: any) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 });
-
-export default router;
