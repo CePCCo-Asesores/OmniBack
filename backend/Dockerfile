@@ -1,7 +1,15 @@
-FROM node:18
+# Stage 1: Build
+FROM node:18 AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 COPY . .
-EXPOSE 3000
-CMD ["npm", "run", "start"]
+RUN npm run build
+
+# Stage 2: Run
+FROM node:18-alpine
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY package*.json ./
+RUN npm ci --omit=dev
+CMD ["node", "dist/index.js"]
