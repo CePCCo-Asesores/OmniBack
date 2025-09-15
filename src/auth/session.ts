@@ -14,6 +14,9 @@ export const verifyToken = (token: string): string | null => {
   }
 };
 
+/**
+ * Registra una sesión en la base de datos.
+ */
 export const logSession = async (userId: string, instanceId: string) => {
   await insert('sessions', { user_id: userId, instance_id: instanceId });
 };
