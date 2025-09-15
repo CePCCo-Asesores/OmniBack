@@ -16,7 +16,6 @@ services:
     buildCommand: "npm ci && npm run build"
     startCommand: "node dist/index.js"
     healthCheckPath: "/health"
-    notifyOnFail: true
     envVars:
       - key: NODE_ENV
         value: production
