@@ -66,9 +66,8 @@ services:
   # =========================
   - type: web
     name: omni-front
-    env: static        # <- cambiado a sitio estático
+    runtime: static        # <- cambiado a sitio estático
     plan: free
-    region: oregon
     autoDeploy: true
     rootDir: frontend  # subdirectorio del frontend (CRA)
     buildCommand: npm ci && npm run build
