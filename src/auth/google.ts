@@ -3,6 +3,8 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import session from 'express-session';
 import dotenv from 'dotenv';
+import { registerUser } from './user';
+import { createToken } from './session';
 
 dotenv.config();
 const router = express.Router();
@@ -12,16 +14,12 @@ passport.use(new GoogleStrategy({
   clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
   callbackURL: '/auth/google/callback'
 }, (accessToken, refreshToken, profile, done) => {
-  // Aquí puedes registrar el usuario en tu sistema universal
-  done(null, profile);
+  const user = registerUser(profile.id, profile.emails?.[0]?.value || '', profile.displayName);
+  done(null, user);
 }));
 
-passport.serializeUser((user, done) => {
-  done(null, user);
-});
-passport.deserializeUser((obj, done) => {
-  done(null, obj);
-});
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((obj, done) => done(null, obj));
 
 router.use(session({
   secret: process.env.JWT_SECRET!,
@@ -35,11 +33,15 @@ router.get('/', passport.authenticate('google', { scope: ['profile', 'email'] })
 
 router.get('/callback', passport.authenticate('google', {
   failureRedirect: '/auth/google/failure',
-  successRedirect: '/auth/google/success'
-}));
+  session: false
+}), (req, res) => {
+  const user = req.user as { id: string };
+  const token = createToken(user.id);
+  res.redirect(`/auth/google/success?token=${token}`);
+});
 
 router.get('/success', (req, res) => {
-  res.send({ status: 'Autenticación exitosa', user: req.user });
+  res.send({ status: 'Autenticación exitosa', token: req.query.token });
 });
 
 router.get('/failure', (_, res) => {
