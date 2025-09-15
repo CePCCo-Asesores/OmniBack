@@ -10,14 +10,14 @@ services:
   # =========================
   - type: web
     name: omni-back
+    env: docker
     plan: starter
     region: oregon
     autoDeploy: true
     rootDir: backend
-    buildCommand: "npm ci && npm run build"
-    startCommand: "node dist/index.js"
+    dockerfilePath: Dockerfile
     healthCheckPath: "/health"
-    
+
     envVars:
       # --- Básicos ---
       - key: NODE_ENV
@@ -25,7 +25,7 @@ services:
       - key: SERVICE_NAME
         value: omni-back
 
-      # --- URLs (ajusta cuando tengas los subdominios definitivos) ---
+      # --- URLs ---
       - key: BACKEND_URL
         value: https://<tu-backend>.onrender.com
       - key: PUBLIC_URL
@@ -33,29 +33,22 @@ services:
       - key: ALLOWED_ORIGIN
         value: https://<tu-frontend>.onrender.com
 
-      # --- DB (inyectada desde la base de datos de arriba) ---
+      # --- DB ---
       - key: DATABASE_URL
         fromDatabase:
           name: omniback-db
           property: connectionString
-      # Si tu instancia no requiere SSL (raro en Render), descomenta:
-      # - key: PGSSL
-      #   value: "disable"
 
-      # --- Seguridad / JWT ---
+      # --- Seguridad / JWT (solo sync o value, no ambos) ---
       - key: SESSION_SECRET
-        value: "<pon_un_valor_largo_y_aleatorio>"
         sync: false
       - key: JWT_SECRET
-        value: "<pon_otro_valor_largo_y_aleatorio>"
         sync: false
 
       # --- Google OAuth ---
       - key: GOOGLE_CLIENT_ID
-        value: "<tu_client_id>.apps.googleusercontent.com"
         sync: false
       - key: GOOGLE_CLIENT_SECRET
-        value: "<tu_client_secret>"
         sync: false
       - key: GOOGLE_CALLBACK_URL
         value: https://<tu-backend>.onrender.com/auth/google/callback
@@ -64,12 +57,12 @@ services:
       - key: ACCESS_TOKEN_TTL
         value: "15m"
       - key: REFRESH_TOKEN_TTL_MS
-        value: "604800000" # 7 días
+        value: "604800000"
       - key: MAX_REQUEST_SIZE
         value: "2mb"
 
   # =========================
-  # Frontend (SPA estático)
+  # Frontend (React SPA via Docker)
   # =========================
   - type: web
     name: omni-front
@@ -78,23 +71,10 @@ services:
     region: oregon
     autoDeploy: true
     rootDir: frontend
-    buildCommand: "npm ci && npm run build"
-    startCommand: "nginx -g 'daemon off;'"
     dockerfilePath: Dockerfile
-    
 
     envVars:
       - key: REACT_APP_API_BASE
         value: https://<tu-backend>.onrender.com
       - key: PUBLIC_URL
         value: https://<tu-frontend>.onrender.com
-
-    # SPA fallback y cache suave
-    routes:
-      - type: rewrite
-        source: /.*
-        destination: /index.html
-    headers:
-      - path: /*
-        name: Cache-Control
-        value: public, max-age=300
