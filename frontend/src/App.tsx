@@ -1,20 +1,17 @@
 import React from 'react';
-import { resolveUI } from './engine/resolveUI';
-import DashboardUI from './ui/dashboard';
-import AdminUI from './ui/admin';
-import AgentUI from './ui/agent';
+import AgentCoreModule from './modules/agent-core';
+import AnalyticsModule from './modules/analytics';
+import PermissionsModule from './modules/permissions';
 
-const instanceId = process.env.REACT_APP_INSTANCE_ID || 'default';
-const activeUI = resolveUI(instanceId);
+const activeModule = process.env.REACT_APP_ACTIVE_MODULE || 'agent-core';
 
 const App = () => {
-  switch (activeUI) {
-    case 'dashboard': return <DashboardUI />;
-    case 'admin': return <AdminUI />;
-    case 'agent': return <AgentUI />;
-    default: return <div>UI no definida para instancia: {instanceId}</div>;
+  switch (activeModule) {
+    case 'agent-core': return <AgentCoreModule />;
+    case 'analytics': return <AnalyticsModule />;
+    case 'permissions': return <PermissionsModule />;
+    default: return <div>Módulo no definido</div>;
   }
 };
 
 export default App;
-
