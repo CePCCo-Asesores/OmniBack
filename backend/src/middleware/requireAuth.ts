@@ -1,4 +1,3 @@
-// src/middleware/requireAuth.ts
 import { Request, Response, NextFunction } from "express";
 import {
   getBearerToken,
@@ -11,7 +10,6 @@ export default function requireAuth(
   res: Response,
   next: NextFunction
 ) {
-  // Pásale el request completo a getBearerToken (no un string)
   const token = getBearerToken(req);
   if (!token) return res.status(401).json({ error: "No token" });
 
