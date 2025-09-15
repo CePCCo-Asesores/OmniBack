@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from "express";
 import {
   getBearerToken,
   verifyAccessToken,
-  AccessTokenPayload
+  AccessTokenPayload,
 } from "../auth/session";
 
 type Claims = AccessTokenPayload & {
@@ -15,7 +15,7 @@ type Claims = AccessTokenPayload & {
   isOrgAdmin?: boolean;
 };
 
-// --- Helpers de verificación --- //
+// --- Helpers --- //
 function extractClaims(req: Request, res: Response): Claims | null {
   const token = getBearerToken(req);
   if (!token) {
@@ -54,4 +54,66 @@ function isAdminForOrg(claims: Claims, orgId: string): boolean {
 }
 
 function isMemberForOrg(claims: Claims, orgId: string): boolean {
-  // Consideramos "miembro" si pertenece a la misma org
+  if (claims.orgId === orgId) return true;
+  if (claims.orgRoles && typeof claims.orgRoles[orgId] === "string") return true;
+  if (claims.orgRole && claims.orgId === orgId) return true;
+  return false;
+}
+
+// --- Middlewares --- //
+export function requireOrg(req: Request, res: Response, next: NextFunction) {
+  const claims = extractClaims(req, res);
+  if (!claims) return;
+
+  const orgId = ensureOrg(claims, res);
+  if (!orgId) return;
+
+  (req as any).user = claims;
+  (req as any).orgId = orgId;
+  next();
+}
+
+export function requireOrgMember(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const claims = extractClaims(req, res);
+  if (!claims) return;
+
+  const orgId = ensureOrg(claims, res);
+  if (!orgId) return;
+
+  if (!isMemberForOrg(claims, orgId)) {
+    res.status(403).json({ error: "Org membership required" });
+    return;
+  }
+
+  (req as any).user = claims;
+  (req as any).orgId = orgId;
+  next();
+}
+
+export function requireOrgAdmin(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const claims = extractClaims(req, res);
+  if (!claims) return;
+
+  const orgId = ensureOrg(claims, res);
+  if (!orgId) return;
+
+  if (!isAdminForOrg(claims, orgId)) {
+    res.status(403).json({ error: "Admin role required" });
+    return;
+  }
+
+  (req as any).user = claims;
+  (req as any).orgId = orgId;
+  next();
+}
+
+// Default export para compatibilidad
+export default requireOrg;
