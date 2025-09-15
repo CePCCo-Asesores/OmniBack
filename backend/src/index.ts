@@ -1,11 +1,7 @@
-import express from 'express';
-import cors from 'cors';
-import profileRouter from './routes/profile';
+import app from './server';
 
-const app = express();
-app.use(cors());
-app.use('/profile', profileRouter);
+const PORT = process.env.PORT || 3000;
 
-// ...otras rutas y configuración
-
-export default app;
+app.listen(PORT, () => {
+  console.log(`OmniBack backend activo en puerto ${PORT}`);
+});
