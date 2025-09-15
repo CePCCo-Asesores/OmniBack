@@ -1,10 +1,7 @@
 // src/auth/session.ts
-import jwt, { Secret } from "jsonwebtoken";
+import jwt, { Secret, SignOptions } from "jsonwebtoken";
 
-/**
- * Payload básico del access token.
- * Agrega aquí los campos que uses (orgId, roles, etc.).
- */
+/** Payload del access token */
 export type AccessTokenPayload = {
   sub: string;           // user id
   email?: string;
@@ -12,22 +9,33 @@ export type AccessTokenPayload = {
   [k: string]: any;
 };
 
+/**
+ * El tipo que jsonwebtoken acepta para expiresIn NO es "string" genérico,
+ * sino un "StringValue" (p.ej. "1h", "30m", "7d") o number (segundos).
+ */
+export type Expires =
+  | number
+  | `${number}ms`
+  | `${number}s`
+  | `${number}m`
+  | `${number}h`
+  | `${number}d`;
+
 const JWT_SECRET: Secret = (process.env.JWT_SECRET || "change_me_in_prod") as Secret;
 
 /**
- * Crea un JWT de acceso.
- * NOTA: expiresIn debe ser string o number compatible con jsonwebtoken (ej: "1h", 3600).
+ * Crea un JWT de acceso con typing compatible con jsonwebtoken@9.
  */
 export function createAccessToken(
   payload: AccessTokenPayload,
-  expiresIn: string | number = "1h"
+  expiresIn: Expires = "1h"
 ): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn });
+  const options: SignOptions = { expiresIn };
+  // Forzamos el overload correcto pasando options tipado.
+  return jwt.sign(payload as object, JWT_SECRET, options);
 }
 
-/**
- * Verifica y decodifica el access token. Devuelve null si es inválido/expirado.
- */
+/** Verifica y decodifica el token. Devuelve null si es inválido/expirado. */
 export function verifyAccessToken(token: string): AccessTokenPayload | null {
   try {
     return jwt.verify(token, JWT_SECRET) as AccessTokenPayload;
@@ -37,8 +45,8 @@ export function verifyAccessToken(token: string): AccessTokenPayload | null {
 }
 
 /**
- * Extrae el token Bearer del request. No imponemos tipos de Express para evitar dependencias aquí.
- * Busca en Authorization: Bearer <token> o en query ?token=<...>
+ * Extrae el token Bearer de un request (Authorization o query ?token=).
+ * Mantengo la firma “request-like” para evitar depender de tipos de Express aquí.
  */
 export function getBearerToken(req: { headers?: any; query?: any }): string | null {
   const auth = req?.headers?.authorization as string | undefined;
@@ -48,3 +56,5 @@ export function getBearerToken(req: { headers?: any; query?: any }): string | nu
   const q = req?.query?.token as string | undefined;
   return q ? String(q) : null;
 }
+
+/** Alias para compatibilidad con código que importe verifyToken */***
