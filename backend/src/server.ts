@@ -23,15 +23,21 @@ import { router as meRouter } from './routes/me';
 import { googleAuthRoutes } from './auth/google';
 import authRouter from './routes/auth'; // /auth/refresh y /auth/logout
 
+// 👇 NUEVO: routers de plataforma (multi-tenant / agents / plans / subs)
+import { router as orgsRouter } from './routes/orgs';
+import { router as plansRouter } from './routes/plans';
+import { router as subsRouter } from './routes/subscriptions';
+import { router as agentsRouter } from './routes/agents';
+
 const app = express();
 
 // ------------------------ Base & Seguridad ------------------------
 app.set('trust proxy', 1); // cookies secure detrás de proxy (Railway/Render)
 
 app.use(helmet());
-// HSTS solo en prod (evita problemas en dev con http)
+// HSTS solo en prod
 if (process.env.NODE_ENV === 'production') {
-  app.use(helmet.hsts({ maxAge: 15552000, includeSubDomains: true, preload: true })); // ~180 días
+  app.use(helmet.hsts({ maxAge: 15552000, includeSubDomains: true, preload: true }));
 }
 
 app.use(compression());
@@ -89,9 +95,15 @@ app.use('/version', versionRouter);
 app.use('/auth/google', googleAuthRoutes); // OAuth Google (con STATE y redirect ?token=)
 app.use('/auth', authRouter);              // /auth/refresh y /auth/logout
 
-// ------------------------ Rutas app ------------------------
+// ------------------------ Rutas app existentes ------------------------
 app.use('/profile', profileRouter); // pública
 app.use('/me', meRouter);           // requiere Bearer (access token)
+
+// ------------------------ Rutas de plataforma (multi-tenant) ------------------------
+app.use('/orgs', orgsRouter);
+app.use('/plans', plansRouter);
+app.use('/subscriptions', subsRouter);
+app.use('/agents', agentsRouter);
 
 // ------------------------ Manejo de errores ------------------------
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
