@@ -82,7 +82,7 @@ services:
     buildCommand: "npm ci && npm run build"
     startCommand: "nginx -g 'daemon off;'"
     dockerfilePath: Dockerfile
-    publishPath: "build"
+    
 
     envVars:
       - key: REACT_APP_API_BASE
