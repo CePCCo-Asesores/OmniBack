@@ -1,15 +1,23 @@
 // src/middleware/requireAuth.ts
-import { Request, Response, NextFunction } from 'express';
-import { getBearerToken, verifyAccessToken } from '../auth/session';
+import { Request, Response, NextFunction } from "express";
+import {
+  getBearerToken,
+  verifyAccessToken,
+  AccessTokenPayload
+} from "../auth/session";
 
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  try {
-    const token = getBearerToken(req.headers.authorization || null);
-    if (!token) return res.status(401).json({ error: 'unauthorized' });
-    const claims = verifyAccessToken(token);
-    (req as any).user = claims;
-    return next();
-  } catch {
-    return res.status(401).json({ error: 'unauthorized' });
-  }
+export default function requireAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  // Pásale el request completo a getBearerToken (no un string)
+  const token = getBearerToken(req);
+  if (!token) return res.status(401).json({ error: "No token" });
+
+  const claims = verifyAccessToken(token) as AccessTokenPayload | null;
+  if (!claims) return res.status(401).json({ error: "Invalid token" });
+
+  (req as any).user = claims;
+  next();
 }
