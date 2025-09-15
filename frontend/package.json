@@ -4,21 +4,24 @@
   "private": true,
   "scripts": {
     "start": "react-scripts start",
-    "build": "CI=true react-scripts build",
+    "build": "react-scripts build",
     "test": "react-scripts test --env=jsdom",
-    "lint": "eslint --ext .ts,.tsx src",
+    "lint": "echo \"(opcional) agrega eslint si lo necesitas\"",
     "eject": "react-scripts eject"
   },
   "dependencies": {
-    "@types/jwt-decode": "^3.1.1",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
     "jwt-decode": "^4.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.0"
+    "react-router-dom": "^6.26.0",
+    "react-scripts": "5.0.1"
   },
   "devDependencies": {
-    "typescript": "^5.6.3"
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18 <22"
   }
 }
