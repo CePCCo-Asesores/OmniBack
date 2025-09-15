@@ -1,0 +1,5 @@
+{
+  "instanceId": "example-client",
+  "modules": [],
+  "permissions": ["read", "write", "trace"]
+}
