@@ -1,39 +1,63 @@
-# ====== Etapa de build (con dev deps) ======
+# =========================
+# Stage 1: Build
+# =========================
 FROM node:20-alpine AS build
+
+# 1) Dependencias del SO (opcionales pero útiles p/ builds nativos y healthchecks)
+RUN apk add --no-cache python3 make g++ git
+
+# 2) Seguridad básica: usuario no root
+RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
+USER app
 
-# Copiamos manifiestos primero para cache eficiente
-COPY package*.json ./
+# 3) Copiamos manifiestos primero para cache de npm
+COPY --chown=app:app package*.json ./
 
-# Usamos npm install (no npm ci) para evitar lockfile mismatch
-RUN npm install
+# 4) Instalación resiliente:
+#    - Primero intentamos npm ci (rápido/determinista si el lockfile está bien)
+#    - Si falla por mismatch, hacemos fallback a npm install
+RUN npm ci || npm install
 
-# Copiamos el resto del código
-COPY . .
+# 5) Copiamos el resto del código
+COPY --chown=app:app . .
 
-# Si usas TypeScript, compila a /app/dist (si no usas TS no pasa nada)
-# Asegúrate de tener "build": "tsc" en package.json si es TS
-RUN npm run build || echo "No build step, skipping"
+# 6) Compilar TypeScript -> dist (si falla, aborta build)
+RUN npm run build
 
-# Dejamos solo dependencias de producción para el runtime
+# 7) Dejar solo dependencias de producción para runtime
 RUN npm prune --omit=dev
 
-# ====== Etapa de runtime mínima ======
+
+# =========================
+# Stage 2: Runtime
+# =========================
 FROM node:20-alpine AS runtime
+
+# Instalo curl para healthcheck (ligero en Alpine)
+RUN apk add --no-cache curl
+
+# Usuario no root consistente
+RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
+USER app
+
+# Variables recomendadas
 ENV NODE_ENV=production
+# Render inyecta PORT, pero exponemos 10000 como valor por defecto/documentación
+ENV PORT=10000
 
-# Copiamos solo lo necesario del build
-COPY --from=build /app/package*.json ./
-COPY --from=build /app/node_modules ./node_modules
+# Copiamos sólo lo necesario del build
+COPY --chown=app:app --from=build /app/package*.json ./
+COPY --chown=app:app --from=build /app/node_modules ./node_modules
+COPY --chown=app:app --from=build /app/dist ./dist
 
-# Si compilas TS, copia /dist; si no, copia /src y ajusta el CMD más abajo
-# Por defecto asumimos que sí hay build a dist:
-COPY --from=build /app/dist ./dist
-
-# Render inyecta $PORT; tu app debe escuchar process.env.PORT
+# Puerto informativo (Render ignora EXPOSE para el binding real, pero es útil)
 EXPOSE 10000
 
-# Si compilas TS, el entrypoint suele ser dist/index.js o dist/server.js.
-# Ajusta la ruta si tu archivo es otro.
+# Healthcheck interno contra /health
+HEALTHCHECK --interval=30s --timeout=5s --retries=5 CMD \
+  curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null || exit 1
+
+# Arranque
 CMD ["node", "dist/index.js"]
