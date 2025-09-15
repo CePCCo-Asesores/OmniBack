@@ -3,7 +3,8 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy, Profile } from 'passport-google-oauth20';
 import type { VerifyCallback } from 'passport-oauth2';
 import crypto from 'crypto';
-import { createToken } from './session';
+import { upsertUserFromGoogle, storeRefreshToken, generateRefreshTokenValue } from '../models/user';
+import { createAccessToken } from './session';
 
 export const googleAuthRoutes = Router();
 
@@ -22,23 +23,31 @@ passport.use(
     { clientID: GOOGLE_CLIENT_ID, clientSecret: GOOGLE_CLIENT_SECRET, callbackURL: GOOGLE_CALLBACK_URL },
     async (_accessToken: string, _refreshToken: string, profile: Profile, done: VerifyCallback) => {
       try {
-        const primaryEmail =
+        const email =
           Array.isArray(profile.emails) && profile.emails.length > 0 ? profile.emails[0].value : undefined;
+        if (!email) return done(new Error('Google profile sin email válido'));
         const picture =
           Array.isArray(profile.photos) && profile.photos.length > 0 ? profile.photos[0].value : undefined;
 
-        // Aquí podrías hacer upsert del usuario en DB si quieres.
-        const userClaims = {
-          sub: profile.id,
-          provider: 'google',
-          email: primaryEmail,
+        // Upsert de usuario en DB
+        const user = await upsertUserFromGoogle({
+          googleId: profile.id,
+          email,
           name: profile.displayName,
           picture,
-          // roles: ['user'],
-          iss: 'omni-back',
-          aud: 'omni-frontend',
+        });
+
+        // Claims para access token
+        const claims = {
+          sub: user.id,
+          email: user.email,
+          name: user.name,
+          picture: user.picture,
+          roles: user.roles || ['user'],
+          provider: 'google',
         };
-        return done(null, userClaims);
+
+        return done(null, claims);
       } catch (err) {
         return done(err as Error);
       }
@@ -58,11 +67,10 @@ googleAuthRoutes.get('/', (req: Request, res: Response, next: NextFunction) => {
     secure: process.env.NODE_ENV === 'production',
     maxAge: 5 * 60 * 1000,
   });
-  // Agrega scopes que necesites
   passport.authenticate('google', { scope: ['profile', 'email'], prompt: 'select_account', state })(req, res, next);
 });
 
-// Callback → valida STATE, genera JWT, redirige al FE con ?token=
+// Callback → valida STATE, genera tokens, setea cookie httponly, redirige
 googleAuthRoutes.get(
   '/callback',
   (req: Request, res: Response, next: NextFunction) => {
@@ -78,27 +86,44 @@ googleAuthRoutes.get(
     }
     res.clearCookie('oauth_state');
 
-    passport.authenticate('google', { session: false }, (err: any, user: any) => {
-      if (err) {
+    passport.authenticate('google', { session: false }, async (err: any, claims: any) => {
+      if (err || !claims) {
         const u = new URL('/login', frontend);
-        u.searchParams.set('error', 'oauth_error');
-        u.searchParams.set('message', (err && err.message) || 'unknown');
+        u.searchParams.set('error', err ? 'oauth_error' : 'no_user');
+        if (err?.message) u.searchParams.set('message', err.message);
         return res.redirect(u.toString());
       }
-      if (!user) {
-        const u = new URL('/login', frontend);
-        u.searchParams.set('error', 'no_user');
-        return res.redirect(u.toString());
-      }
+
       try {
-        const token = createToken(user);
+        // Access token corto
+        const access = createAccessToken(claims, process.env.ACCESS_TOKEN_TTL || '15m');
+
+        // Refresh token opaco (rotativo) en cookie httpOnly
+        const refresh = generateRefreshTokenValue();
+        const ttlMs = Number(process.env.REFRESH_TOKEN_TTL_MS || 1000 * 60 * 60 * 24 * 7); // 7d por defecto
+        await storeRefreshToken({
+          userId: claims.sub,
+          tokenValue: refresh,
+          ttlMs,
+          userAgent: req.get('user-agent') || undefined,
+          ip: (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || undefined,
+        });
+
+        res.cookie('rt', refresh, {
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+          maxAge: ttlMs,
+          path: '/', // disponible para /auth/refresh y /auth/logout
+        });
+
         const u = new URL('/auth/callback', frontend);
-        u.searchParams.set('token', token);
+        u.searchParams.set('token', access);
         return res.redirect(u.toString());
       } catch (e: any) {
         const u = new URL('/login', frontend);
         u.searchParams.set('error', 'token_error');
-        u.searchParams.set('message', (e && e.message) || 'token_failed');
+        if (e?.message) u.searchParams.set('message', e.message);
         return res.redirect(u.toString());
       }
     })(req, res, next);
